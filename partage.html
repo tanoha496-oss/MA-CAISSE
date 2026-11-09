@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mon épargne 2 : partage</title>
+<meta name="theme-color" content="#0f9d6b">
+<style>
+:root{--bg:#f6f7fb;--card:#fff;--tx:#1d2433;--mu:#6b7280;--ac:#0f9d6b;--rd:#d64545;--bd:#e3e6ee;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12151c;--card:#1b2030;--tx:#e8ebf3;--mu:#98a0b3;--ac:#3ccf91;--rd:#ff7b7b;--bd:#2a3145;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12151c;--card:#1b2030;--tx:#e8ebf3;--mu:#98a0b3;--ac:#3ccf91;--rd:#ff7b7b;--bd:#2a3145;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+main{max-width:520px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:8px 0 16px}
+.entete{display:flex;justify-content:space-between;align-items:center;gap:8px}
+button{border:0;border-radius:10px;font-weight:600;color:#fff;background:var(--ac);cursor:pointer;padding:8px 12px;font-size:.9rem}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:16px;margin-bottom:14px}
+.solde{font-size:2rem;font-weight:700;color:var(--ac)}
+.mu{color:var(--mu);font-size:.85rem}
+.coffre{border-left:6px solid;padding-left:12px}
+.head.clic{cursor:pointer}
+.top{display:flex;justify-content:space-between;align-items:baseline}
+.pct{font-size:.8rem;font-weight:700;padding:2px 8px;border-radius:20px;color:#fff}
+.montant{font-size:1.3rem;font-weight:700}
+.body{margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)}
+ul{list-style:none;padding:0;margin:8px 0 0}
+li{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd);gap:8px}
+li:last-child{border:0}
+.pos{color:var(--ac);font-weight:600}
+.neg{color:var(--rd);font-weight:600}
+.fait{text-decoration:line-through;color:var(--mu)}
+.util{margin-top:16px;padding-top:12px;border-top:2px dashed var(--bd)}
+</style>
+</head>
+<body>
+<main>
+<div class="entete"><h1>💰 Épargne 2 partagée</h1><button id="maj">↻ Actualiser</button></div>
+<div class="mu" id="info" style="margin:-8px 0 12px"></div>
+<div class="card"><div class="mu">Total des coffres</div><div class="solde" id="total">…</div></div>
+<div id="coffres"></div>
+<div class="card"><strong>Derniers dépôts</strong><ul id="ops"></ul></div>
+<div class="mu" style="text-align:center">Lecture seule : tu vois les changements, tu ne peux rien modifier.</div>
+</main>
+<script>
+var D=null,ouvert=null;
+function $(i){return document.getElementById(i);}
+function esc(t){return String(t).replace(/[<>&]/g,"");}
+function fmt(n){return n.toLocaleString("fr-FR",{maximumFractionDigits:2})+" "+(D&&D.devise?D.devise:"FCFA");}
+function render(){
+  var tot=0,h="";
+  D.coffres.forEach(function(c){
+    tot+=c.solde;
+    var l=D.listes&&D.listes[c.id];
+    h+='<div class="card coffre" style="border-left-color:'+c.c+'"><div class="head'+(l?' clic" data-t="'+c.id:'')+'"><div class="top"><strong>'+esc(c.nom)+'</strong><span class="pct" style="background:'+c.c+'">'+c.pct+' %</span></div><span class="montant">'+fmt(c.solde)+'</span>'+(l?'<div class="mu">'+(ouvert===c.id?'▴ Masquer la liste':'▾ Touche pour voir la liste')+'</div>':'')+'</div>';
+    if(l&&ouvert===c.id){
+      h+='<div class="body"><ul>';
+      if(!l.length)h+='<li class="mu">Liste vide.</li>';
+      l.forEach(function(i){h+='<li><span'+(i.ok?' class="fait"':'')+'>'+esc(i.n)+'</span><span class="pos" style="color:'+c.c+'">'+fmt(i.p)+'</span></li>';});
+      h+='</ul>';
+      var u=(D.util&&D.util[c.id])||[];
+      if(u.length){
+        h+='<div class="util"><strong>Utilisations du coffre</strong><ul>';
+        u.slice().reverse().forEach(function(x){h+='<li><div><div>'+(x.n?esc(x.n):'Utilisation')+'</div><div class="mu">'+esc(x.d)+'</div></div><span class="neg">−'+fmt(x.m)+'</span></li>';});
+        h+='</ul></div>';
+      }
+      h+='</div>';
+    }
+    h+='</div>';
+  });
+  $("coffres").innerHTML=h;
+  $("total").textContent=fmt(tot);
+  $("info").textContent="Dernière mise à jour : "+D.maj;
+  var o=(D.ops||[]).slice().reverse(),oh="";
+  if(!o.length)oh='<li class="mu">Aucun dépôt.</li>';
+  o.forEach(function(x){oh+='<li><span>'+esc(x.d)+'</span><span class="pos">+'+fmt(x.m)+'</span></li>';});
+  $("ops").innerHTML=oh;
+}
+function charger(){
+  $("info").textContent="Chargement…";
+  fetch("data.json?t="+Date.now(),{cache:"no-store"}).then(function(r){if(!r.ok)throw 0;return r.json();}).then(function(d){D=d;render();}).catch(function(){$("info").textContent="Impossible de charger les données. Vérifie ta connexion.";});
+}
+$("maj").onclick=charger;
+$("coffres").onclick=function(e){
+  var hd=e.target.closest?e.target.closest(".head"):null;
+  if(hd&&hd.getAttribute("data-t")&&D){var t=hd.getAttribute("data-t");ouvert=(ouvert===t?null:t);render();}
+};
+charger();
+</script>
+</body>
+</html>
